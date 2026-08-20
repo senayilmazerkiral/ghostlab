@@ -1,7 +1,6 @@
-# E-Commerce REST API
+# GhostLab
 
-A RESTful e-commerce backend application developed with Java and Spring Boot.
-
+A RESTful e-commerce backend for GhostLab, built with Java and Spring Boot.
 The project provides product, category, user, authentication, authorization, and order management features with PostgreSQL database integration.
 
 ## Technologies
