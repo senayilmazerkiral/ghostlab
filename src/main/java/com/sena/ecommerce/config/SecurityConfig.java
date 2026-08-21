@@ -33,12 +33,10 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        .requestMatchers(
-                                "/",
-                                "/test",
-                                "/auth/**",
-                                "/users/**"
-                        ).permitAll()
+                        .requestMatchers("/test").permitAll()
+                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/users/**").permitAll()
+                        .requestMatchers("/").permitAll()
 
                         .requestMatchers(
                                 HttpMethod.GET,
