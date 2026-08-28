@@ -47,4 +47,6 @@ build/
 
 # Local configuration
 application-local.properties
-application-secret.propertiesfrontend/public/music/ghostlab.mp3
+application-secret.properties
+
+frontend/public/music/ghostlab.mp3
