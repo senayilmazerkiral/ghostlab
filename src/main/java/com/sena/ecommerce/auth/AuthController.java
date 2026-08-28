@@ -45,6 +45,11 @@ public class AuthController {
                 user.getEmail(),
                 user.getRole()
         );
-        return ResponseEntity.ok(new LoginResponse(token));
-    }
+        return ResponseEntity.ok(
+                new LoginResponse(
+                        token,
+                        user.getId(),
+                        user.getRole()
+                )
+        );    }
 }

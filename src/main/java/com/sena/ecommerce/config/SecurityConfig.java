@@ -9,6 +9,10 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import java.util.Arrays;
 
 @Configuration
 public class SecurityConfig {
@@ -25,58 +29,92 @@ public class SecurityConfig {
     }
 
     @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        configuration.setAllowedOrigins(
+                Arrays.asList("http://localhost:5173")
+        );
+
+        configuration.setAllowedMethods(
+                Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS")
+        );
+
+        configuration.setAllowedHeaders(
+                Arrays.asList("*")
+        );
+
+        configuration.setAllowCredentials(true);
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http) throws Exception {
 
         http
                 .csrf(csrf -> csrf.disable())
+                .cors(cors -> {})
 
                 .authorizeHttpRequests(auth -> auth
 
-                        .requestMatchers("/test").permitAll()
-                        .requestMatchers("/auth/**").permitAll()
+                        // Kullanıcı kayıt ve login
                         .requestMatchers("/users/**").permitAll()
-                        .requestMatchers("/").permitAll()
+                        .requestMatchers("/auth/**").permitAll()
 
+                        // Ürünleri ve kategorileri herkes görebilir
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/products/**",
                                 "/categories/**"
-                        ).hasAnyRole("USER", "ADMIN")
+                        ).permitAll()
 
+                        // Ürün ve kategori ekleme sadece ADMIN
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/products/**",
                                 "/categories/**"
                         ).hasRole("ADMIN")
 
+                        // Ürün ve kategori güncelleme sadece ADMIN
                         .requestMatchers(
                                 HttpMethod.PUT,
                                 "/products/**",
                                 "/categories/**"
                         ).hasRole("ADMIN")
 
+                        // Ürün ve kategori silme sadece ADMIN
                         .requestMatchers(
                                 HttpMethod.DELETE,
                                 "/products/**",
                                 "/categories/**"
                         ).hasRole("ADMIN")
 
+                        // Siparişleri USER ve ADMIN görebilir
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/orders/**"
                         ).hasAnyRole("USER", "ADMIN")
 
+                        // Sipariş oluşturma
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/orders"
                         ).hasAnyRole("USER", "ADMIN")
 
+                        // Sipariş durumunu sadece ADMIN değiştirebilir
                         .requestMatchers(
                                 HttpMethod.PUT,
                                 "/orders/*/status"
                         ).hasRole("ADMIN")
 
+                        // Diğer her şey login gerektirir
                         .anyRequest().authenticated()
                 );
 
