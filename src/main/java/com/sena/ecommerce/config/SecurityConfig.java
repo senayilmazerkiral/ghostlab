@@ -33,7 +33,10 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         configuration.setAllowedOrigins(
-                Arrays.asList("http://localhost:5173")
+                Arrays.asList(
+                        "http://localhost:5173",
+                        "https://ghostlab-lime.vercel.app"
+                )
         );
 
         configuration.setAllowedMethods(
