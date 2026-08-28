@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";import "./App.css";
 
-const API_URL = "http://localhost:8080";
+const API_URL = "https://ghostlab.onrender.com";
 
 function App() {
   // =========================
