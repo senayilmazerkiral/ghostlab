@@ -252,9 +252,8 @@ function App() {
 
   const loadOrders = async () => {
     const token = localStorage.getItem("token");
-    const userId = localStorage.getItem("userId");
 
-    if (!token || !userId) {
+    if (!token) {
       setShowLogin(true);
       setMessage("Siparişlerini görmek için giriş yapmalısın.");
       return;
@@ -264,7 +263,7 @@ function App() {
 
     try {
       const response = await fetch(
-        `${API_URL}/orders/user/${userId}`,
+        `${API_URL}/orders/my-orders`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -273,15 +272,22 @@ function App() {
       );
 
       if (!response.ok) {
-        throw new Error("Siparişler alınamadı.");
+        const errorText = await response.text();
+
+        throw new Error(
+          errorText || "Siparişler alınamadı."
+        );
       }
 
       const data = await response.json();
 
       setOrders(data);
       setShowOrders(true);
+
     } catch (err) {
+      console.error("Siparişler yüklenemedi:", err);
       setMessage(err.message);
+
     } finally {
       setOrdersLoading(false);
     }
@@ -1395,13 +1401,10 @@ function App() {
                 <button
                   onClick={async () => {
 
-                    const token =
-                      localStorage.getItem("token");
+                    const token = localStorage.getItem("token");
 
-                    const userId =
-                      localStorage.getItem("userId");
-
-                    if (!token || !userId) {
+                    // Giriş yapılmamışsa sipariş veremez
+                    if (!token) {
 
                       setShowCart(false);
                       setShowLogin(true);
@@ -1415,28 +1418,24 @@ function App() {
 
                     try {
 
-                      const response =
-                        await fetch(
-                          `${API_URL}/orders?userId=${userId}`,
-                          {
-                            method: "POST",
+                      const response = await fetch(
+                        `${API_URL}/orders`,
+                        {
+                          method: "POST",
 
-                            headers: {
-                              "Content-Type":
-                                "application/json",
+                          headers: {
+                            "Content-Type": "application/json",
+                            Authorization: `Bearer ${token}`,
+                          },
 
-                              Authorization:
-                                `Bearer ${token}`,
-                            },
-
-                            body: JSON.stringify({
-                              items: cart.map((item) => ({
-                                productId: item.id,
-                                quantity: item.quantity,
-                              })),
-                            }),
-                          }
-                        );
+                          body: JSON.stringify({
+                            items: cart.map((item) => ({
+                              productId: item.id,
+                              quantity: item.quantity,
+                            })),
+                          }),
+                        }
+                      );
 
                       if (!response.ok) {
 
@@ -1445,26 +1444,32 @@ function App() {
 
                         throw new Error(
                           errorText ||
-                            "Sipariş oluşturulamadı."
+                          "Sipariş oluşturulamadı."
                         );
                       }
 
-                      const order =
-                        await response.json();
+                      const order = await response.json();
 
+                      // Sepeti temizle
                       setCart([]);
+
+                      // Sepet modalını kapat
                       setShowCart(false);
 
+                      // Başarılı mesaj
                       setMessage(
                         `Sipariş #${order.id} başarıyla oluşturuldu!`
                       );
 
                     } catch (err) {
 
+                      console.error(
+                        "Sipariş oluşturulamadı:",
+                        err
+                      );
+
                       setMessage(err.message);
-
                     }
-
                   }}
                 >
                   Siparişi Tamamla

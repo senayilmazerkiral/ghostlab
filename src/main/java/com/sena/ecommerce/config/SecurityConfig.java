@@ -5,14 +5,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import java.util.Arrays;
+
+import java.util.List;
 
 @Configuration
 public class SecurityConfig {
@@ -24,28 +26,71 @@ public class SecurityConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
+        http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                .csrf(csrf -> csrf.disable())
+
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+
+                .authorizeHttpRequests(auth -> auth
+
+                        // CORS preflight
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                        // Login / register
+                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/users/**").permitAll()
+
+                        // Products
+                        .requestMatchers(HttpMethod.GET, "/products/**").permitAll()
+
+                        // Categories
+                        .requestMatchers(HttpMethod.GET, "/categories/**").permitAll()
+
+                        // Diğer tüm istekler giriş gerektirir
+                        .anyRequest().authenticated()
+                )
+
+                .addFilterBefore(
+                        jwtAuthenticationFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
+
+        return http.build();
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+
         CorsConfiguration configuration = new CorsConfiguration();
 
-        configuration.setAllowedOrigins(
-                Arrays.asList(
-                        "http://localhost:5173",
-                        "https://ghostlab-lime.vercel.app"
-                )
-        );
+        configuration.setAllowedOrigins(List.of(
+                "https://ghostlab-pzgevffst-sena-3901.vercel.app",
+                "http://localhost:5173"
+        ));
 
-        configuration.setAllowedMethods(
-                Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS")
-        );
+        configuration.setAllowedMethods(List.of(
+                "GET",
+                "POST",
+                "PUT",
+                "DELETE",
+                "OPTIONS"
+        ));
 
-        configuration.setAllowedHeaders(
-                Arrays.asList("*")
-        );
+        configuration.setAllowedHeaders(List.of(
+                "Authorization",
+                "Content-Type",
+                "Accept"
+        ));
+
+        configuration.setExposedHeaders(List.of(
+                "Authorization"
+        ));
 
         configuration.setAllowCredentials(true);
 
@@ -58,74 +103,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http) throws Exception {
-
-        http
-                .csrf(csrf -> csrf.disable())
-                .cors(cors -> {})
-
-                .authorizeHttpRequests(auth -> auth
-
-                        // Kullanıcı kayıt ve login
-                        .requestMatchers("/users/**").permitAll()
-                        .requestMatchers("/auth/**").permitAll()
-
-                        // Ürünleri ve kategorileri herkes görebilir
-                        .requestMatchers(
-                                HttpMethod.GET,
-                                "/products/**",
-                                "/categories/**"
-                        ).permitAll()
-
-                        // Ürün ve kategori ekleme sadece ADMIN
-                        .requestMatchers(
-                                HttpMethod.POST,
-                                "/products/**",
-                                "/categories/**"
-                        ).hasRole("ADMIN")
-
-                        // Ürün ve kategori güncelleme sadece ADMIN
-                        .requestMatchers(
-                                HttpMethod.PUT,
-                                "/products/**",
-                                "/categories/**"
-                        ).hasRole("ADMIN")
-
-                        // Ürün ve kategori silme sadece ADMIN
-                        .requestMatchers(
-                                HttpMethod.DELETE,
-                                "/products/**",
-                                "/categories/**"
-                        ).hasRole("ADMIN")
-
-                        // Siparişleri USER ve ADMIN görebilir
-                        .requestMatchers(
-                                HttpMethod.GET,
-                                "/orders/**"
-                        ).hasAnyRole("USER", "ADMIN")
-
-                        // Sipariş oluşturma
-                        .requestMatchers(
-                                HttpMethod.POST,
-                                "/orders"
-                        ).hasAnyRole("USER", "ADMIN")
-
-                        // Sipariş durumunu sadece ADMIN değiştirebilir
-                        .requestMatchers(
-                                HttpMethod.PUT,
-                                "/orders/*/status"
-                        ).hasRole("ADMIN")
-
-                        // Diğer her şey login gerektirir
-                        .anyRequest().authenticated()
-                );
-
-        http.addFilterBefore(
-                jwtAuthenticationFilter,
-                UsernamePasswordAuthenticationFilter.class
-        );
-
-        return http.build();
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

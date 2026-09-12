@@ -12,6 +12,7 @@ import com.sena.ecommerce.repository.ProductRepository;
 import com.sena.ecommerce.repository.UserRepository;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.ArrayList;
@@ -35,62 +36,24 @@ public class OrderController {
         this.userRepository = userRepository;
     }
 
-    @PutMapping("/{id}/status")
-    public ResponseEntity<?> updateOrderStatus(
-            @PathVariable Long id,
-            @RequestParam OrderStatus status) {
-
-        Order order = orderRepository.findById(id)
-                .orElse(null);
-
-        if (order == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        if (order.getStatus() == OrderStatus.CONFIRMED
-                && status == OrderStatus.CANCELLED) {
-            return ResponseEntity.badRequest()
-                    .body("CONFIRMED sipariş iptal edilemez.");
-        }
-
-        if (order.getStatus() == OrderStatus.CANCELLED) {
-            return ResponseEntity.badRequest()
-                    .body("İptal edilmiş siparişin durumu değiştirilemez.");
-        }
-
-        if (status == OrderStatus.CANCELLED
-                && order.getStatus() == OrderStatus.PENDING) {
-
-            for (OrderItem item : order.getItems()) {
-
-                Product product = item.getProduct();
-
-                product.setStock(
-                        product.getStock() + item.getQuantity()
-                );
-
-                productRepository.save(product);
-            }
-        }
-
-        order.setStatus(status);
-
-        return ResponseEntity.ok(
-                orderRepository.save(order)
-        );
-
-    }
+    // =========================================================
+    // SİPARİŞ OLUŞTUR
+    // =========================================================
 
     @PostMapping
     public ResponseEntity<?> createOrder(
-            @RequestParam Long userId,
+            Authentication authentication,
             @Valid @RequestBody OrderRequest request) {
 
-        User user = userRepository.findById(userId)
+        // JWT'den giriş yapan kullanıcının email adresini al
+        String email = authentication.getName();
+
+        User user = userRepository.findByEmail(email)
                 .orElse(null);
 
         if (user == null) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.status(401)
+                    .body("Kullanıcı bulunamadı.");
         }
 
         Order order = new Order();
@@ -110,7 +73,14 @@ public class OrderController {
 
             if (product == null) {
                 return ResponseEntity.badRequest().body(
-                        "Ürün bulunamadı: " + itemRequest.getProductId()
+                        "Ürün bulunamadı: "
+                                + itemRequest.getProductId()
+                );
+            }
+
+            if (itemRequest.getQuantity() <= 0) {
+                return ResponseEntity.badRequest().body(
+                        "Ürün miktarı 0'dan büyük olmalıdır."
                 );
             }
 
@@ -130,10 +100,13 @@ public class OrderController {
             orderItems.add(orderItem);
 
             totalPrice +=
-                    product.getPrice() * itemRequest.getQuantity();
+                    product.getPrice()
+                            * itemRequest.getQuantity();
 
+            // Stoktan düş
             product.setStock(
-                    product.getStock() - itemRequest.getQuantity()
+                    product.getStock()
+                            - itemRequest.getQuantity()
             );
 
             productRepository.save(product);
@@ -147,33 +120,139 @@ public class OrderController {
         return ResponseEntity.ok(savedOrder);
     }
 
+
+    // =========================================================
+    // TÜM SİPARİŞLER
+    // SADECE ADMIN
+    // =========================================================
+
     @GetMapping
     public List<Order> getAllOrders() {
         return orderRepository.findAll();
     }
 
+
+    // =========================================================
+    // TEK SİPARİŞ
+    // =========================================================
+
     @GetMapping("/{id}")
-    public ResponseEntity<Order> getOrderById(
-            @PathVariable Long id) {
+    public ResponseEntity<?> getOrderById(
+            @PathVariable Long id,
+            Authentication authentication) {
 
-        return orderRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
-    }
+        String email = authentication.getName();
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Order>> getOrdersByUser(
-            @PathVariable Long userId) {
-
-        User user = userRepository.findById(userId)
+        User user = userRepository.findByEmail(email)
                 .orElse(null);
 
         if (user == null) {
+            return ResponseEntity.status(401)
+                    .body("Kullanıcı bulunamadı.");
+        }
+
+        Order order = orderRepository.findById(id)
+                .orElse(null);
+
+        if (order == null) {
             return ResponseEntity.notFound().build();
+        }
+
+        // ADMIN her siparişi görebilir
+        if ("ADMIN".equals(user.getRole())) {
+            return ResponseEntity.ok(order);
+        }
+
+        // USER sadece kendi siparişini görebilir
+        if (!order.getUser().getId().equals(user.getId())) {
+            return ResponseEntity.status(403)
+                    .body("Bu siparişi görüntüleme yetkiniz yok.");
+        }
+
+        return ResponseEntity.ok(order);
+    }
+
+
+    // =========================================================
+    // KULLANICININ KENDİ SİPARİŞLERİ
+    // =========================================================
+
+    @GetMapping("/my-orders")
+    public ResponseEntity<?> getMyOrders(
+            Authentication authentication) {
+
+        String email = authentication.getName();
+
+        User user = userRepository.findByEmail(email)
+                .orElse(null);
+
+        if (user == null) {
+            return ResponseEntity.status(401)
+                    .body("Kullanıcı bulunamadı.");
         }
 
         return ResponseEntity.ok(
                 orderRepository.findByUser(user)
+        );
+    }
+
+
+    // =========================================================
+    // SİPARİŞ DURUMUNU DEĞİŞTİR
+    // SADECE ADMIN
+    // =========================================================
+
+    @PutMapping("/{id}/status")
+    public ResponseEntity<?> updateOrderStatus(
+            @PathVariable Long id,
+            @RequestParam OrderStatus status) {
+
+        Order order = orderRepository.findById(id)
+                .orElse(null);
+
+        if (order == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        // CONFIRMED -> CANCELLED yasak
+        if (order.getStatus() == OrderStatus.CONFIRMED
+                && status == OrderStatus.CANCELLED) {
+
+            return ResponseEntity.badRequest()
+                    .body("CONFIRMED sipariş iptal edilemez.");
+        }
+
+        // CANCELLED sipariş tekrar değiştirilemez
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+
+            return ResponseEntity.badRequest()
+                    .body(
+                            "İptal edilmiş siparişin durumu değiştirilemez."
+                    );
+        }
+
+        // PENDING -> CANCELLED
+        // Ürünleri tekrar stoğa ekle
+        if (status == OrderStatus.CANCELLED
+                && order.getStatus() == OrderStatus.PENDING) {
+
+            for (OrderItem item : order.getItems()) {
+
+                Product product = item.getProduct();
+
+                product.setStock(
+                        product.getStock()
+                                + item.getQuantity()
+                );
+
+                productRepository.save(product);
+            }
+        }
+
+        order.setStatus(status);
+
+        return ResponseEntity.ok(
+                orderRepository.save(order)
         );
     }
 }
