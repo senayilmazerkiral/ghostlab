@@ -71,6 +71,7 @@ public class SecurityConfig {
 
         configuration.setAllowedOrigins(List.of(
                 "https://ghostlab-pzgevffst-sena-3901.vercel.app",
+                "https://ghostlab-e5gvq7al6-sena-3901.vercel.app",
                 "http://localhost:5173"
         ));
 
@@ -81,8 +82,8 @@ public class SecurityConfig {
                 "DELETE",
                 "OPTIONS"
         ));
-
-        configuration.setAllowedHeaders(List.of(
+        
+configuration.setAllowedHeaders(List.of(
                 "Authorization",
                 "Content-Type",
                 "Accept"
