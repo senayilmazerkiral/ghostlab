@@ -2746,3 +2746,13 @@ footer span {
   }
 
 }
+
+/* Login input yazı renkleri */
+input {
+  color: #111111;
+}
+
+input::placeholder {
+  color: #666666;
+  opacity: 1;
+}

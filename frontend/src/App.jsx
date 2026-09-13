@@ -1183,6 +1183,7 @@ function App() {
 
             <form onSubmit={handleLogin}>
 
+              ```jsx
               <input
                 type="email"
                 placeholder="Email"
@@ -1190,6 +1191,7 @@ function App() {
                 onChange={(e) =>
                   setLoginEmail(e.target.value)
                 }
+                style={{ color: "#111111" }}
                 required
               />
 
@@ -1200,8 +1202,11 @@ function App() {
                 onChange={(e) =>
                   setLoginPassword(e.target.value)
                 }
+                style={{ color: "#111111" }}
                 required
               />
+              ```
+
 
               <button type="submit">
                 Giriş Yap
